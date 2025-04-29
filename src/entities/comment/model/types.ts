@@ -1,12 +1,12 @@
 export interface Comment {
   id: number
-  body: string
   postId: number
   userId: number
+  body: string
+  likes: number
   user: {
     id: number
     username: string
     image: string
   }
-  likes: number
 }
