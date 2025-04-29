@@ -19,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
   Textarea,
-} from "../shared/ui"
+} from "@/shared/ui"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
 const PostsManager = () => {
   const navigate = useNavigate()
