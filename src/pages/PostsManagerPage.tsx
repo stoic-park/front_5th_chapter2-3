@@ -3,7 +3,7 @@ import { Edit2, MessageSquare, Plus, Search, ThumbsDown, ThumbsUp, Trash2 } from
 import { useLocation, useNavigate } from "react-router-dom"
 import { Post } from "@/entities/post/model/types"
 import {
-  Button,
+  // Button,
   Card,
   CardContent,
   CardHeader,
@@ -12,15 +12,20 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-  Textarea,
+  // Input,
+  // Select,
+  // SelectContent,
+  // SelectItem,
+  // SelectTrigger,
+  // SelectValue,
+  // Textarea,
 } from "@/shared/ui"
+import { Button } from "@/shared/ui/Button"
+import { Textarea } from "@/shared/ui/Textarea"
+import { Input } from "@/shared/ui/Input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/shared/ui/table"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select"
+
 const PostsManager = () => {
   const navigate = useNavigate()
   const location = useLocation()
