@@ -1,4 +1,3 @@
-// shared/api/axiosInstance.ts
 import axios from "axios"
 
 export const axiosInstance = axios.create({

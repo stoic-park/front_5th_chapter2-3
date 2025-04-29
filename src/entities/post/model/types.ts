@@ -1,5 +1,3 @@
-// entities/post/model/types.ts
-
 // 게시글(Post) 타입
 export interface Post {
   id: number
