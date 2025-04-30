@@ -1,3 +1,8 @@
-export const Table = ({ className, ...props }: React.HTMLAttributes<HTMLTableElement>) => {
-  return <table className={className} {...props} />
-}
+import React from "react"
+
+export const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
+  ({ className, ...props }, ref) => {
+    return <table ref={ref} className={`table-fixed w-full caption-bottom text-sm ${className}`} {...props} />
+  },
+)
+Table.displayName = "Table"
