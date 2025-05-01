@@ -7,6 +7,7 @@ import { PostTable } from "@/widgets/post-table/ui/PostTable"
 import { PostDetailDialog } from "@/widgets/post-detail-dialog/ui/PostDetailDialog"
 import { PostFilterPanel } from "@/widgets/post-filters/ui/PostFilterPanel"
 import { PaginationPanel } from "@/widgets/pagination/ui/PaginationPanel"
+import { UserInfoDialog } from "@/widgets/user-info-dialog/ui/UserInfoDialog"
 
 // features
 import { PostAddDialog } from "@/features/post-add/ui/PostAddDialog"
@@ -15,17 +16,7 @@ import { CommentAddDialog } from "@/features/comment-add/ui/CommentAddDialog"
 import { CommentEditDialog } from "@/features/comment-edit/ui/CommentEditDialog"
 
 // shared
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/shared/ui"
+import { Button, Card, CardContent, CardHeader, CardTitle } from "@/shared/ui"
 import { highlightText } from "@/shared/lib/highlightText"
 
 // entities
@@ -328,28 +319,7 @@ const PostsManagerPage = () => {
         }}
       />
 
-      <Dialog open={showUserModal} onOpenChange={setShowUserModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>사용자 정보</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <img src={selectedUser?.image} alt={selectedUser?.username} className="w-24 h-24 rounded-full mx-auto" />
-            <h3 className="text-xl font-semibold text-center">{selectedUser?.username}</h3>
-            <div className="space-y-2 text-sm">
-              <p>
-                <strong>이름:</strong> {selectedUser?.firstName} {selectedUser?.lastName}
-              </p>
-              <p>
-                <strong>이메일:</strong> {selectedUser?.email}
-              </p>
-              <p>
-                <strong>전화번호:</strong> {selectedUser?.phone}
-              </p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <UserInfoDialog open={showUserModal} onOpenChange={setShowUserModal} user={selectedUser} />
     </Card>
   )
 }

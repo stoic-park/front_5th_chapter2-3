@@ -17,7 +17,7 @@ export default defineConfig({
       "@/app": path.resolve(__dirname, "./src/app"),
     },
   },
-  base: process.env.NODE_ENV === "production" ? "/front_5th_chapter2-2/" : "/",
+  base: process.env.NODE_ENV === "production" ? "/front_5th_chapter2-3/" : "/",
   build: {
     rollupOptions: {
       input: {
