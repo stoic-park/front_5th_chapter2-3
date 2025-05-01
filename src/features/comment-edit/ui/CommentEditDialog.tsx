@@ -1,5 +1,3 @@
-// src/features/comment-edit/ui/CommentEditDialog.tsx
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui"
 import { Textarea, Button } from "@/shared/ui"
 import { useState, useEffect } from "react"
@@ -32,7 +30,11 @@ export const CommentEditDialog = ({ open, onOpenChange, comment, onCommentUpdate
     if (!comment) return
     setLoading(true)
     try {
-      const updated = await updateComment(comment.id, { body })
+      const updated = await updateComment({
+        id: comment.id,
+        body: body,
+        postId: comment.postId,
+      })
       onCommentUpdated?.({ ...comment, body: updated.body })
       onOpenChange(false)
     } catch (e) {

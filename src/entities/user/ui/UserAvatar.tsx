@@ -1,5 +1,3 @@
-// src/entities/user/ui/UserAvatar.tsx
-
 import { User } from "../model/types"
 
 interface UserAvatarProps {

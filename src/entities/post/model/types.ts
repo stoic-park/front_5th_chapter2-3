@@ -1,3 +1,5 @@
+import { User } from "@/entities/user/model/types"
+
 // 게시글(Post) 타입
 export interface Post {
   id: number
@@ -9,11 +11,7 @@ export interface Post {
     likes: number
     dislikes: number
   }
-  author?: {
-    id: number
-    username: string
-    image: string
-  }
+  author?: User
 }
 
 // 태그(Tag) 타입

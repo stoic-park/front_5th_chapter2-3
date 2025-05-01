@@ -51,9 +51,7 @@ export const PostRow = ({
           </div>
         </div>
       </TableCell>
-      <TableCell>
-        <UserAvatar user={post.author} onClick={() => onClickUser(post.author)} />
-      </TableCell>
+      <TableCell>{post.author && <UserAvatar user={post.author} onClick={() => onClickUser(post.author)} />}</TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
           <ThumbsUp className="w-4 h-4" />
