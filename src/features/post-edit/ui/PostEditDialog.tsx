@@ -2,8 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui"
 import { Input, Textarea, Button } from "@/shared/ui"
 import { useState, useEffect } from "react"
 import { Post } from "@/entities/post/model/types"
-import { updatePost } from "@/entities/post/api/postApi"
-
+import { usePostEdit } from "@/features/post-edit/model/usePostEdit"
 interface PostEditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -20,6 +19,8 @@ export const PostEditDialog = ({ open, onOpenChange, post, onPostUpdated }: Post
   const [body, setBody] = useState("")
   const [loading, setLoading] = useState(false)
 
+  const { submit } = usePostEdit()
+
   // 초기값 세팅
   useEffect(() => {
     if (post) {
@@ -32,7 +33,7 @@ export const PostEditDialog = ({ open, onOpenChange, post, onPostUpdated }: Post
     if (!post) return
     setLoading(true)
     try {
-      const updated = await updatePost(post.id, { title, body })
+      const updated = await submit(post.id, { title, body })
       onPostUpdated?.(updated)
       onOpenChange(false)
     } catch (e) {

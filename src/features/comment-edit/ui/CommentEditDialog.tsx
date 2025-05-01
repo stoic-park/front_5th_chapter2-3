@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui"
 import { Textarea, Button } from "@/shared/ui"
 import { useState, useEffect } from "react"
 import { Comment } from "@/entities/comment/model/types"
-import { updateComment } from "@/entities/comment/api/commentApi"
+import { useCommentEdit } from "@/features/comment-edit/model/useCommentEdit"
 
 interface CommentEditDialogProps {
   open: boolean
@@ -20,6 +20,8 @@ export const CommentEditDialog = ({ open, onOpenChange, comment, onCommentUpdate
   const [body, setBody] = useState("")
   const [loading, setLoading] = useState(false)
 
+  const { submit } = useCommentEdit()
+
   useEffect(() => {
     if (comment) {
       setBody(comment.body)
@@ -30,11 +32,7 @@ export const CommentEditDialog = ({ open, onOpenChange, comment, onCommentUpdate
     if (!comment) return
     setLoading(true)
     try {
-      const updated = await updateComment({
-        id: comment.id,
-        body: body,
-        postId: comment.postId,
-      })
+      const updated = await submit(comment.id, { body })
       onCommentUpdated?.({ ...comment, body: updated.body })
       onOpenChange(false)
     } catch (e) {
