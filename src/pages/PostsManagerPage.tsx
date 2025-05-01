@@ -14,17 +14,22 @@ import { PostAddDialog } from "@/features/post-add/ui/PostAddDialog"
 import { PostEditDialog } from "@/features/post-edit/ui/PostEditDialog"
 import { CommentAddDialog } from "@/features/comment-add/ui/CommentAddDialog"
 import { CommentEditDialog } from "@/features/comment-edit/ui/CommentEditDialog"
+import { usePosts } from "@/features/post-load/model/usePosts"
+import { useSearchPosts } from "@/features/post-load/model/useSearchPosts"
+import { usePostsByTag } from "@/features/post-load/model/usePostsByTag"
+import { useCommentLoad } from "@/features/comment-manage/model/useCommentLoad"
+import { useCommentLike } from "@/features/comment-manage/model/useCommentLike"
+import { useCommentDelete } from "@/features/comment-manage/model/useCommentDelete"
 
 // shared
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/shared/ui"
 import { highlightText } from "@/shared/lib/highlightText"
 
 // entities
-import { fetchPosts, fetchPostsByTag, searchPosts, fetchTags, deletePost } from "@/entities/post/api/postApi"
-import { fetchComments, deleteComment, likeComment } from "@/entities/comment/api/commentApi"
-import { fetchUsers, fetchUserById } from "@/entities/user/api/userApi"
+import { fetchTags, deletePost } from "@/entities/post/api/postApi"
+import { fetchUserById } from "@/entities/user/api/userApi"
 
-//types
+// types
 import { Post, Tag } from "@/entities/post/model/types"
 import { Comment } from "@/entities/comment/model/types"
 import { User } from "@/entities/user/model/types"
@@ -34,8 +39,6 @@ const PostsManagerPage = () => {
   const location = useLocation()
   const queryParams = new URLSearchParams(location.search)
 
-  const [posts, setPosts] = useState<Post[]>([])
-  const [total, setTotal] = useState(0)
   const [skip, setSkip] = useState(parseInt(queryParams.get("skip") || "0"))
   const [limit, setLimit] = useState(parseInt(queryParams.get("limit") || "10"))
   const [searchQuery, setSearchQuery] = useState(queryParams.get("search") || "")
@@ -44,14 +47,11 @@ const PostsManagerPage = () => {
   const [selectedTag, setSelectedTag] = useState(queryParams.get("tag") || "")
   const [tags, setTags] = useState<Tag[]>([])
 
-  const [loading, setLoading] = useState(false)
-
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showPostDetailDialog, setShowPostDetailDialog] = useState(false)
 
-  const [comments, setComments] = useState<Record<number, Comment[]>>({})
   const [selectedComment, setSelectedComment] = useState<Comment | null>(null)
   const [showAddCommentDialog, setShowAddCommentDialog] = useState(false)
   const [showEditCommentDialog, setShowEditCommentDialog] = useState(false)
@@ -59,7 +59,32 @@ const PostsManagerPage = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)
 
-  // URL 업데이트
+  // ---------------------
+  // Posts 관련 훅
+  // ---------------------
+  const { posts: defaultPosts, total: defaultTotal, loading: loadingDefault, loadPosts } = usePosts()
+
+  const { posts: searchedPosts, total: searchedTotal, loading: loadingSearch, search } = useSearchPosts()
+
+  const { posts: taggedPosts, total: taggedTotal, loading: loadingTag, loadByTag } = usePostsByTag()
+
+  const isSearching = !!searchQuery
+  const isTagFiltered = !!selectedTag && selectedTag !== "all"
+
+  const posts = isSearching ? searchedPosts : isTagFiltered ? taggedPosts : defaultPosts
+
+  const total = isSearching ? searchedTotal : isTagFiltered ? taggedTotal : defaultTotal
+
+  const loading = loadingSearch || loadingTag || loadingDefault
+
+  // ---------------------
+  // Comments 관련 훅
+  // ---------------------
+  const { commentsMap, load: loadComments, setCommentsMap } = useCommentLoad()
+
+  const { like: likeComment } = useCommentLike(commentsMap, setCommentsMap)
+  const { remove: deleteComment } = useCommentDelete(setCommentsMap)
+
   const updateURL = () => {
     const params = new URLSearchParams()
     if (skip) params.set("skip", skip.toString())
@@ -71,111 +96,20 @@ const PostsManagerPage = () => {
     navigate(`?${params.toString()}`)
   }
 
-  // 게시글 + 유저 가져오기
-  const handleFetchPosts = async () => {
-    try {
-      setLoading(true)
-      const [postRes, users] = await Promise.all([fetchPosts(limit, skip), fetchUsers()])
-      const postsWithUsers = postRes.posts.map((post: Post) => ({
-        ...post,
-        author: users.find((user) => user.id === post.userId),
-      }))
-      setPosts(postsWithUsers)
-      setTotal(postRes.total)
-    } catch (err) {
-      console.error("게시물 로드 실패:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleSearchPosts = async () => {
-    if (!searchQuery) {
-      handleFetchPosts()
-      return
-    }
-    try {
-      setLoading(true)
-      const [res, users] = await Promise.all([searchPosts(searchQuery), fetchUsers()])
-      const postsWithUsers = res.posts.map((post: Post) => ({
-        ...post,
-        author: users.find((user) => user.id === post.userId),
-      }))
-      setPosts(postsWithUsers)
-      setTotal(res.total)
-    } catch (err) {
-      console.error("검색 실패:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleFetchPostsByTag = async (tag: string) => {
-    if (!tag || tag === "all") {
-      handleFetchPosts()
-      return
-    }
-    try {
-      setLoading(true)
-      const [res, users] = await Promise.all([fetchPostsByTag(tag), fetchUsers()])
-      const postsWithUsers = res.posts.map((post: Post) => ({
-        ...post,
-        author: users.find((user) => user.id === post.userId),
-      }))
-      setPosts(postsWithUsers)
-      setTotal(res.total)
-    } catch (err) {
-      console.error("태그 필터 실패:", err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleFetchTags = async () => {
-    try {
-      const data = await fetchTags()
-      setTags(data)
-    } catch (err) {
-      console.error("태그 로드 실패:", err)
-    }
-  }
-
-  const handleFetchComments = async (postId: number) => {
-    if (comments[postId]) return
-    const data = await fetchComments(postId)
-    setComments((prev) => ({ ...prev, [postId]: data }))
-  }
-
-  const handleLikeComment = async (commentId: number, postId: number) => {
-    const target = comments[postId]?.find((c: Comment) => c.id === commentId)
-    if (!target) return
-    const updated = await likeComment(commentId)
-    setComments((prev) => ({
-      ...prev,
-      [postId]: prev[postId]?.map((c: Comment) => (c.id === commentId ? updated : c)) || [],
-    }))
-  }
-
-  const handleDeleteComment = async (id: number, postId: number) => {
-    await deleteComment(id)
-    setComments((prev) => ({
-      ...prev,
-      [postId]: prev[postId]?.filter((c: Comment) => c.id !== id) || [],
-    }))
-  }
-
   useEffect(() => {
-    handleFetchTags()
+    fetchTags().then(setTags).catch(console.error)
   }, [])
 
   useEffect(() => {
-    if (selectedTag) {
-      handleFetchPostsByTag(selectedTag)
+    if (isSearching) {
+      search(searchQuery)
+    } else if (isTagFiltered) {
+      loadByTag(selectedTag)
     } else {
-      handleFetchPosts()
+      loadPosts(limit, skip)
     }
     updateURL()
-  }, [skip, limit, sortBy, sortOrder, selectedTag])
+  }, [skip, limit, searchQuery, selectedTag])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -199,6 +133,7 @@ const PostsManagerPage = () => {
         </CardTitle>
       </CardHeader>
 
+      {/* 테이블 */}
       <CardContent className="space-y-6">
         <PostFilterPanel
           searchQuery={searchQuery}
@@ -207,10 +142,10 @@ const PostsManagerPage = () => {
           sortOrder={sortOrder}
           tags={tags}
           onChangeSearch={setSearchQuery}
-          onSearchSubmit={handleSearchPosts}
+          onSearchSubmit={() => search(searchQuery)}
           onChangeTag={(tag) => {
             setSelectedTag(tag)
-            handleFetchPostsByTag(tag)
+            loadByTag(tag)
           }}
           onChangeSortBy={setSortBy}
           onChangeSortOrder={setSortOrder}
@@ -232,7 +167,7 @@ const PostsManagerPage = () => {
             }}
             onClickTag={(tag) => {
               setSelectedTag(tag)
-              handleFetchPostsByTag(tag)
+              loadByTag(tag)
             }}
             onClickEdit={(post) => {
               setSelectedPost(post)
@@ -240,11 +175,11 @@ const PostsManagerPage = () => {
             }}
             onClickDelete={async (postId) => {
               await deletePost(postId)
-              setPosts((prev) => prev.filter((p) => p.id !== postId))
+              loadPosts(limit, skip)
             }}
             onClickDetail={(post) => {
               setSelectedPost(post)
-              handleFetchComments(post.id)
+              loadComments(post.id)
               setShowPostDetailDialog(true)
             }}
           />
@@ -260,12 +195,12 @@ const PostsManagerPage = () => {
         />
       </CardContent>
 
+      {/* 모달 */}
       <PostAddDialog
         open={showAddDialog}
         onOpenChange={setShowAddDialog}
-        onPostAdded={(post) => {
-          setPosts((prev) => [post, ...prev])
-          setShowAddDialog(false)
+        onPostAdded={() => {
+          loadPosts(limit, skip)
         }}
       />
 
@@ -274,7 +209,7 @@ const PostsManagerPage = () => {
         onOpenChange={setShowEditDialog}
         post={selectedPost}
         onPostUpdated={() => {
-          handleFetchPosts()
+          loadPosts(limit, skip)
         }}
       />
 
@@ -282,17 +217,15 @@ const PostsManagerPage = () => {
         open={showPostDetailDialog}
         onOpenChange={setShowPostDetailDialog}
         post={selectedPost}
-        comments={selectedPost?.id ? comments[selectedPost.id] || [] : []}
+        comments={selectedPost?.id ? commentsMap[selectedPost.id] || [] : []}
         searchQuery={searchQuery}
-        onClickAddComment={() => {
-          setShowAddCommentDialog(true)
-        }}
+        onClickAddComment={() => setShowAddCommentDialog(true)}
         onClickEditComment={(comment) => {
           setSelectedComment(comment)
           setShowEditCommentDialog(true)
         }}
-        onClickDeleteComment={handleDeleteComment}
-        onClickLikeComment={handleLikeComment}
+        onClickDeleteComment={deleteComment}
+        onClickLikeComment={likeComment}
         highlightText={highlightText}
       />
 
@@ -302,9 +235,7 @@ const PostsManagerPage = () => {
         postId={selectedPost?.id || 0}
         userId={1}
         onCommentAdded={() => {
-          if (selectedPost) {
-            handleFetchComments(selectedPost.id)
-          }
+          if (selectedPost) loadComments(selectedPost.id)
         }}
       />
 
@@ -313,9 +244,7 @@ const PostsManagerPage = () => {
         onOpenChange={setShowEditCommentDialog}
         comment={selectedComment}
         onCommentUpdated={() => {
-          if (selectedComment) {
-            handleFetchComments(selectedComment.postId)
-          }
+          if (selectedComment) loadComments(selectedComment.postId)
         }}
       />
 
