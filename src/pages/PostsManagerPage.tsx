@@ -14,18 +14,16 @@ import { PostAddDialog } from "@/features/post-add/ui/PostAddDialog"
 import { PostEditDialog } from "@/features/post-edit/ui/PostEditDialog"
 import { CommentAddDialog } from "@/features/comment-add/ui/CommentAddDialog"
 import { CommentEditDialog } from "@/features/comment-edit/ui/CommentEditDialog"
-import { usePosts } from "@/features/post-load/model/usePosts"
-import { useSearchPosts } from "@/features/post-load/model/useSearchPosts"
-import { usePostsByTag } from "@/features/post-load/model/usePostsByTag"
-import { useCommentLoad } from "@/features/comment-manage/model/useCommentLoad"
-import { useCommentLike } from "@/features/comment-manage/model/useCommentLike"
-import { useCommentDelete } from "@/features/comment-manage/model/useCommentDelete"
 
 // shared
 import { Button, Card, CardContent, CardHeader, CardTitle } from "@/shared/ui"
 import { highlightText } from "@/shared/lib/highlightText"
 
-// entities
+// zustand store
+import { usePostStore } from "@/features/post-load/model/usePostStore"
+import { useCommentStore } from "@/features/comment-manage/model/useCommentStore"
+
+// api
 import { fetchTags, deletePost } from "@/entities/post/api/postApi"
 import { fetchUserById } from "@/entities/user/api/userApi"
 
@@ -39,6 +37,7 @@ const PostsManagerPage = () => {
   const location = useLocation()
   const queryParams = new URLSearchParams(location.search)
 
+  // 로컬 상태
   const [skip, setSkip] = useState(parseInt(queryParams.get("skip") || "0"))
   const [limit, setLimit] = useState(parseInt(queryParams.get("limit") || "10"))
   const [searchQuery, setSearchQuery] = useState(queryParams.get("search") || "")
@@ -59,31 +58,9 @@ const PostsManagerPage = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)
 
-  // ---------------------
-  // Posts 관련 훅
-  // ---------------------
-  const { posts: defaultPosts, total: defaultTotal, loading: loadingDefault, loadPosts } = usePosts()
-
-  const { posts: searchedPosts, total: searchedTotal, loading: loadingSearch, search } = useSearchPosts()
-
-  const { posts: taggedPosts, total: taggedTotal, loading: loadingTag, loadByTag } = usePostsByTag()
-
-  const isSearching = !!searchQuery
-  const isTagFiltered = !!selectedTag && selectedTag !== "all"
-
-  const posts = isSearching ? searchedPosts : isTagFiltered ? taggedPosts : defaultPosts
-
-  const total = isSearching ? searchedTotal : isTagFiltered ? taggedTotal : defaultTotal
-
-  const loading = loadingSearch || loadingTag || loadingDefault
-
-  // ---------------------
-  // Comments 관련 훅
-  // ---------------------
-  const { commentsMap, load: loadComments, setCommentsMap } = useCommentLoad()
-
-  const { like: likeComment } = useCommentLike(commentsMap, setCommentsMap)
-  const { remove: deleteComment } = useCommentDelete(setCommentsMap)
+  // zustand store
+  const { posts, total, loading, loadDefault, loadBySearch, loadByTag, removePost } = usePostStore()
+  const { commentsMap, fetchByPostId, like, remove } = useCommentStore()
 
   const updateURL = () => {
     const params = new URLSearchParams()
@@ -96,20 +73,42 @@ const PostsManagerPage = () => {
     navigate(`?${params.toString()}`)
   }
 
+  const handleSearchPosts = () => {
+    if (!searchQuery) {
+      loadDefault(limit, skip)
+    } else {
+      loadBySearch(searchQuery)
+    }
+  }
+
+  const handleFetchPostsByTag = (tag: string) => {
+    if (!tag || tag === "all") {
+      loadDefault(limit, skip)
+    } else {
+      loadByTag(tag)
+    }
+  }
+
+  const handleDeleteComment = async (id: number, postId: number) => {
+    await remove(id, postId)
+  }
+
+  const handleLikeComment = async (id: number) => {
+    await like(id)
+  }
+
   useEffect(() => {
-    fetchTags().then(setTags).catch(console.error)
+    fetchTags().then(setTags)
   }, [])
 
   useEffect(() => {
-    if (isSearching) {
-      search(searchQuery)
-    } else if (isTagFiltered) {
-      loadByTag(selectedTag)
+    if (selectedTag) {
+      handleFetchPostsByTag(selectedTag)
     } else {
-      loadPosts(limit, skip)
+      loadDefault(limit, skip)
     }
     updateURL()
-  }, [skip, limit, searchQuery, selectedTag])
+  }, [skip, limit, sortBy, sortOrder, selectedTag])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -133,7 +132,6 @@ const PostsManagerPage = () => {
         </CardTitle>
       </CardHeader>
 
-      {/* 테이블 */}
       <CardContent className="space-y-6">
         <PostFilterPanel
           searchQuery={searchQuery}
@@ -142,10 +140,10 @@ const PostsManagerPage = () => {
           sortOrder={sortOrder}
           tags={tags}
           onChangeSearch={setSearchQuery}
-          onSearchSubmit={() => search(searchQuery)}
+          onSearchSubmit={handleSearchPosts}
           onChangeTag={(tag) => {
             setSelectedTag(tag)
-            loadByTag(tag)
+            handleFetchPostsByTag(tag)
           }}
           onChangeSortBy={setSortBy}
           onChangeSortOrder={setSortOrder}
@@ -159,7 +157,7 @@ const PostsManagerPage = () => {
             searchQuery={searchQuery}
             selectedTag={selectedTag}
             highlightText={highlightText}
-            onClickUser={async (user?: User) => {
+            onClickUser={async (user) => {
               if (!user) return
               const userData = await fetchUserById(user.id)
               setSelectedUser(userData)
@@ -167,7 +165,7 @@ const PostsManagerPage = () => {
             }}
             onClickTag={(tag) => {
               setSelectedTag(tag)
-              loadByTag(tag)
+              handleFetchPostsByTag(tag)
             }}
             onClickEdit={(post) => {
               setSelectedPost(post)
@@ -175,11 +173,11 @@ const PostsManagerPage = () => {
             }}
             onClickDelete={async (postId) => {
               await deletePost(postId)
-              loadPosts(limit, skip)
+              removePost(postId)
             }}
             onClickDetail={(post) => {
               setSelectedPost(post)
-              loadComments(post.id)
+              fetchByPostId(post.id)
               setShowPostDetailDialog(true)
             }}
           />
@@ -195,21 +193,14 @@ const PostsManagerPage = () => {
         />
       </CardContent>
 
-      {/* 모달 */}
-      <PostAddDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-        onPostAdded={() => {
-          loadPosts(limit, skip)
-        }}
-      />
+      <PostAddDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
 
       <PostEditDialog
         open={showEditDialog}
         onOpenChange={setShowEditDialog}
         post={selectedPost}
         onPostUpdated={() => {
-          loadPosts(limit, skip)
+          loadDefault(limit, skip)
         }}
       />
 
@@ -219,13 +210,15 @@ const PostsManagerPage = () => {
         post={selectedPost}
         comments={selectedPost?.id ? commentsMap[selectedPost.id] || [] : []}
         searchQuery={searchQuery}
-        onClickAddComment={() => setShowAddCommentDialog(true)}
+        onClickAddComment={() => {
+          setShowAddCommentDialog(true)
+        }}
         onClickEditComment={(comment) => {
           setSelectedComment(comment)
           setShowEditCommentDialog(true)
         }}
-        onClickDeleteComment={deleteComment}
-        onClickLikeComment={likeComment}
+        onClickDeleteComment={handleDeleteComment}
+        onClickLikeComment={handleLikeComment}
         highlightText={highlightText}
       />
 
@@ -234,18 +227,12 @@ const PostsManagerPage = () => {
         onOpenChange={setShowAddCommentDialog}
         postId={selectedPost?.id || 0}
         userId={1}
-        onCommentAdded={() => {
-          if (selectedPost) loadComments(selectedPost.id)
-        }}
       />
 
       <CommentEditDialog
         open={showEditCommentDialog}
         onOpenChange={setShowEditCommentDialog}
         comment={selectedComment}
-        onCommentUpdated={() => {
-          if (selectedComment) loadComments(selectedComment.postId)
-        }}
       />
 
       <UserInfoDialog open={showUserModal} onOpenChange={setShowUserModal} user={selectedUser} />

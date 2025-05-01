@@ -2,13 +2,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui"
 import { Textarea, Button } from "@/shared/ui"
 import { useState, useEffect } from "react"
 import { Comment } from "@/entities/comment/model/types"
-import { useCommentEdit } from "@/features/comment-edit/model/useCommentEdit"
+import { useCommentStore } from "@/features/comment-manage/model/useCommentStore"
 
 interface CommentEditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   comment: Comment | null
-  onCommentUpdated?: (comment: Comment) => void
 }
 
 // 역할: 댓글 내용 수정 UI + API 호출
@@ -16,11 +15,10 @@ interface CommentEditDialogProps {
 // 상태: body, loading (내부 useState)
 // 의존: updateComment from entities/comment/api
 // 제어: 열림/닫힘과 결과 갱신은 모두 외부에서 처리
-export const CommentEditDialog = ({ open, onOpenChange, comment, onCommentUpdated }: CommentEditDialogProps) => {
+export const CommentEditDialog = ({ open, onOpenChange, comment }: CommentEditDialogProps) => {
   const [body, setBody] = useState("")
   const [loading, setLoading] = useState(false)
-
-  const { submit } = useCommentEdit()
+  const { edit } = useCommentStore()
 
   useEffect(() => {
     if (comment) {
@@ -32,8 +30,7 @@ export const CommentEditDialog = ({ open, onOpenChange, comment, onCommentUpdate
     if (!comment) return
     setLoading(true)
     try {
-      const updated = await submit(comment.id, { body })
-      onCommentUpdated?.({ ...comment, body: updated.body })
+      await edit({ ...comment, body })
       onOpenChange(false)
     } catch (e) {
       console.error("댓글 수정 오류", e)

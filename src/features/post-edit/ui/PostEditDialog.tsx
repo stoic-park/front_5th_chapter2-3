@@ -1,8 +1,8 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui"
-import { Input, Textarea, Button } from "@/shared/ui"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Input, Textarea, Button } from "@/shared/ui"
 import { useState, useEffect } from "react"
 import { Post } from "@/entities/post/model/types"
-import { usePostEdit } from "@/features/post-edit/model/usePostEdit"
+import { usePostStore } from "@/features/post-load/model/usePostStore"
+import { updatePost } from "@/entities/post/api/postApi"
 interface PostEditDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -14,12 +14,11 @@ interface PostEditDialogProps {
 // props: 수정할 post, 완료 시 콜백
 // 상태: title, body, loading (내부 useState)
 // 외부 의존: entities/post/api/updatePost, shared/ui
-export const PostEditDialog = ({ open, onOpenChange, post, onPostUpdated }: PostEditDialogProps) => {
+export const PostEditDialog = ({ open, onOpenChange, post }: PostEditDialogProps) => {
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
-  const [loading, setLoading] = useState(false)
 
-  const { submit } = usePostEdit()
+  const { posts, setPosts } = usePostStore()
 
   // 초기값 세팅
   useEffect(() => {
@@ -31,16 +30,16 @@ export const PostEditDialog = ({ open, onOpenChange, post, onPostUpdated }: Post
 
   const handleSubmit = async () => {
     if (!post) return
-    setLoading(true)
-    try {
-      const updated = await submit(post.id, { title, body })
-      onPostUpdated?.(updated)
-      onOpenChange(false)
-    } catch (e) {
-      console.error("게시물 수정 오류", e)
-    } finally {
-      setLoading(false)
-    }
+
+    const updated = await updatePost(post.id, {
+      ...post,
+      title,
+      body,
+    })
+
+    const updatedPosts = posts.map((p) => (p.id === post.id ? updated : p))
+    setPosts(updatedPosts)
+    onOpenChange(false)
   }
 
   return (
@@ -52,9 +51,7 @@ export const PostEditDialog = ({ open, onOpenChange, post, onPostUpdated }: Post
         <div className="space-y-4">
           <Input placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} />
           <Textarea rows={15} placeholder="내용" value={body} onChange={(e) => setBody(e.target.value)} />
-          <Button onClick={handleSubmit} disabled={loading}>
-            {loading ? "수정 중..." : "게시물 업데이트"}
-          </Button>
+          <Button onClick={handleSubmit}>게시물 업데이트</Button>
         </div>
       </DialogContent>
     </Dialog>

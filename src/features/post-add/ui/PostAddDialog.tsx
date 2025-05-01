@@ -1,24 +1,30 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui"
-import { Input, Textarea, Button } from "@/shared/ui"
 import { useState } from "react"
-import { Post } from "@/entities/post/model/types"
-import { usePostAdd } from "@/features/post-add/model/usePostAdd"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Input, Textarea, Button } from "@/shared/ui"
+import { addPost } from "@/entities/post/api/postApi"
+import { usePostStore } from "@/features/post-load/model/usePostStore"
 
-interface PostAddDialogProps {
+interface Props {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onPostAdded?: (post: Post) => void
 }
 
-export const PostAddDialog = ({ open, onOpenChange, onPostAdded }: PostAddDialogProps) => {
+export const PostAddDialog = ({ open, onOpenChange }: Props) => {
   const [title, setTitle] = useState("")
   const [body, setBody] = useState("")
   const [userId, setUserId] = useState(1)
 
-  const { submit } = usePostAdd()
+  const { posts, setPosts } = usePostStore()
+
   const handleSubmit = async () => {
-    const newPost = await submit({ title, body, userId })
-    onPostAdded?.(newPost)
+    if (!title || !body) return
+
+    const newPost = await addPost({
+      title,
+      body,
+      userId,
+    })
+
+    setPosts([newPost, ...posts])
     setTitle("")
     setBody("")
     setUserId(1)
@@ -33,7 +39,7 @@ export const PostAddDialog = ({ open, onOpenChange, onPostAdded }: PostAddDialog
         </DialogHeader>
         <div className="space-y-4">
           <Input placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)} />
-          <Textarea rows={30} placeholder="내용" value={body} onChange={(e) => setBody(e.target.value)} />
+          <Textarea placeholder="내용" value={body} onChange={(e) => setBody(e.target.value)} rows={8} />
           <Input
             type="number"
             placeholder="사용자 ID"
