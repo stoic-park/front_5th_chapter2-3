@@ -7,6 +7,7 @@ import { MemoryRouter } from "react-router-dom"
 import PostsManager from "@/pages/PostsManagerPage"
 import "@testing-library/jest-dom"
 import { TEST_POSTS, TEST_SEARCH_POST, TEST_USERS } from "./mockData"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 // MSW 서버 설정
 const server = setupServer(
@@ -42,12 +43,25 @@ beforeAll(() => server.listen({ onUnhandledRequest: "error" }))
 afterEach(() => server.resetHandlers())
 afterAll(() => server.close())
 
+const createTestQueryClient = () =>
+  new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false, // 테스트에서는 재시도 비활성화
+        staleTime: Infinity, // 캐시 항상 신선하게 유지
+      },
+    },
+  })
+
 // 테스트에 공통으로 사용될 render 함수
 const renderPostsManager = () => {
+  const queryClient = createTestQueryClient()
   return render(
-    <MemoryRouter>
-      <PostsManager />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <PostsManager />
+      </MemoryRouter>
+    </QueryClientProvider>,
   )
 }
 

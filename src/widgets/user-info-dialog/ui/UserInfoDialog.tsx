@@ -1,5 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui"
 import { User } from "@/entities/user/model/types"
+import { useUserQuery } from "@/entities/user/model/query"
 
 interface Props {
   open: boolean
@@ -8,6 +9,8 @@ interface Props {
 }
 
 export const UserInfoDialog = ({ open, onOpenChange, user }: Props) => {
+  const { data: userData } = useUserQuery(user?.id ?? 0, !!user)
+
   if (!user) return null
 
   return (
@@ -21,13 +24,13 @@ export const UserInfoDialog = ({ open, onOpenChange, user }: Props) => {
           <h3 className="text-xl font-semibold text-center">{user.username}</h3>
           <div className="space-y-2 text-sm">
             <p>
-              <strong>이름:</strong> {user.firstName} {user.lastName}
+              <strong>이름:</strong> {userData?.firstName} {userData?.lastName}
             </p>
             <p>
-              <strong>이메일:</strong> {user.email}
+              <strong>이메일:</strong> {userData?.email}
             </p>
             <p>
-              <strong>전화번호:</strong> {user.phone}
+              <strong>전화번호:</strong> {userData?.phone}
             </p>
           </div>
         </div>

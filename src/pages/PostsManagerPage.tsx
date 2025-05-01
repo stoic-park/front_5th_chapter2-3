@@ -14,13 +14,10 @@ import { Button, Card, CardHeader, CardTitle } from "@/shared/ui"
 import { fetchTags } from "@/entities/post/api/postApi"
 import { usePostsQuery, useSearchPostsQuery, usePostsByTagQuery } from "@/entities/post/model/query"
 import { useDeletePostMutation } from "@/entities/post/model/mutation"
-import { fetchComments, deleteComment, likeComment } from "@/entities/comment/api/commentApi"
-import { fetchUserById } from "@/entities/user/api/userApi"
 
 // types
 import { Post, Tag } from "@/entities/post/model/types"
 import { Comment } from "@/entities/comment/model/types"
-import { User } from "@/entities/user/model/types"
 
 const PostsManagerPage = () => {
   const navigate = useNavigate()
@@ -36,12 +33,10 @@ const PostsManagerPage = () => {
   const [selectedTag, setSelectedTag] = useState(queryParams.get("tag") || "")
 
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [selectedComment, setSelectedComment] = useState<Comment | null>(null)
+  const [selectedUserId, setSelectedUserId] = useState<number | null>(null)
+  const [selectedComment] = useState<Comment | null>(null)
 
   const [tags, setTags] = useState<Tag[]>([])
-  const [commentsMap, setCommentsMap] = useState<Record<number, Comment[]>>({})
-
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showPostDetailDialog, setShowPostDetailDialog] = useState(false)
@@ -52,7 +47,7 @@ const PostsManagerPage = () => {
   const isSearching = !!searchQuery.trim()
   const isFilteringByTag = !!selectedTag && selectedTag !== "all"
 
-  // Query
+  // Posts Query
   const { data: defaultData, isLoading: isLoadingDefault } = usePostsQuery({ limit, skip })
   const { data: searchData } = useSearchPostsQuery(searchQuery, isSearching)
   const { data: tagData } = usePostsByTagQuery(selectedTag, isFilteringByTag)
@@ -69,10 +64,10 @@ const PostsManagerPage = () => {
       ? (tagData?.total ?? 0)
       : (defaultData?.total ?? 0)
 
-  // Mutations
+  // Post Mutation
   const { mutate: deletePost } = useDeletePostMutation()
 
-  // Tags
+  // Tag 초기 로드
   useEffect(() => {
     fetchTags().then(setTags)
   }, [])
@@ -98,31 +93,6 @@ const PostsManagerPage = () => {
     setSortOrder(params.get("sortOrder") || "asc")
     setSelectedTag(params.get("tag") || "")
   }, [location.search])
-
-  // 댓글 핸들러
-  const fetchByPostId = async (postId: number) => {
-    if (commentsMap[postId]) return
-    const data = await fetchComments(postId)
-    setCommentsMap((prev) => ({ ...prev, [postId]: data }))
-  }
-
-  const handleLikeComment = async (commentId: number, postId: number) => {
-    const target = commentsMap[postId]?.find((c) => c.id === commentId)
-    if (!target) return
-    const updated = await likeComment(commentId)
-    setCommentsMap((prev) => ({
-      ...prev,
-      [postId]: prev[postId].map((c) => (c.id === commentId ? updated : c)),
-    }))
-  }
-
-  const handleDeleteComment = async (id: number, postId: number) => {
-    await deleteComment(id)
-    setCommentsMap((prev) => ({
-      ...prev,
-      [postId]: prev[postId].filter((c) => c.id !== id),
-    }))
-  }
 
   return (
     <Card className="w-full max-w-6xl mx-auto">
@@ -152,10 +122,9 @@ const PostsManagerPage = () => {
         onChangeTag={setSelectedTag}
         onChangeSortBy={setSortBy}
         onChangeSortOrder={setSortOrder}
-        onClickUser={async (user) => {
+        onClickUser={(user) => {
           if (!user) return
-          const data = await fetchUserById(user.id)
-          setSelectedUser(data)
+          setSelectedUserId(user.id)
           setShowUserModal(true)
         }}
         onClickTag={setSelectedTag}
@@ -172,7 +141,6 @@ const PostsManagerPage = () => {
         }}
         onClickDetail={(post) => {
           setSelectedPost(post)
-          fetchByPostId(post.id)
           setShowPostDetailDialog(true)
         }}
         onChangeLimit={setLimit}
@@ -189,8 +157,7 @@ const PostsManagerPage = () => {
         showUserModal={showUserModal}
         selectedPost={selectedPost}
         selectedComment={selectedComment}
-        selectedUser={selectedUser}
-        commentsMap={commentsMap}
+        selectedUserId={selectedUserId}
         searchQuery={searchQuery}
         onCloseAddDialog={() => setShowAddDialog(false)}
         onCloseEditDialog={() => setShowEditDialog(false)}
@@ -198,13 +165,6 @@ const PostsManagerPage = () => {
         onCloseAddCommentDialog={() => setShowAddCommentDialog(false)}
         onCloseEditCommentDialog={() => setShowEditCommentDialog(false)}
         onCloseUserModal={() => setShowUserModal(false)}
-        onClickAddComment={() => setShowAddCommentDialog(true)}
-        onClickEditComment={(comment) => {
-          setSelectedComment(comment)
-          setShowEditCommentDialog(true)
-        }}
-        onClickDeleteComment={handleDeleteComment}
-        onClickLikeComment={handleLikeComment}
         onPostUpdated={() => {
           queryClient.invalidateQueries({ queryKey: ["posts"] })
         }}

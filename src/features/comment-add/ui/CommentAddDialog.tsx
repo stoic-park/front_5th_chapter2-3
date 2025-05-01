@@ -1,7 +1,6 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/shared/ui"
-import { Textarea, Button } from "@/shared/ui"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, Textarea, Button } from "@/shared/ui"
 import { useState } from "react"
-import { useCommentStore } from "@/features/comment-manage/model/useCommentStore"
+import { useAddCommentMutation } from "@/entities/comment/model/mutation"
 
 interface CommentAddDialogProps {
   open: boolean
@@ -12,15 +11,14 @@ interface CommentAddDialogProps {
 
 export const CommentAddDialog = ({ open, onOpenChange, postId, userId }: CommentAddDialogProps) => {
   const [body, setBody] = useState("")
-  const [loading, setLoading] = useState(false)
-  const { add } = useCommentStore()
+
+  const { mutate: addComment, isPending } = useAddCommentMutation()
 
   const handleAdd = async () => {
     if (!body.trim()) return
-    setLoading(true)
-    try {
-      await add({
-        id: 0,
+
+    addComment(
+      {
         body,
         postId,
         userId,
@@ -30,14 +28,17 @@ export const CommentAddDialog = ({ open, onOpenChange, postId, userId }: Comment
           username: "",
           image: "",
         },
-      })
-      setBody("")
-      onOpenChange(false)
-    } catch (e) {
-      console.error("댓글 추가 실패:", e)
-    } finally {
-      setLoading(false)
-    }
+      },
+      {
+        onSuccess: () => {
+          setBody("")
+          onOpenChange(false)
+        },
+        onError: (error) => {
+          console.error("댓글 추가 실패:", error)
+        },
+      },
+    )
   }
 
   return (
@@ -48,8 +49,8 @@ export const CommentAddDialog = ({ open, onOpenChange, postId, userId }: Comment
         </DialogHeader>
         <div className="space-y-4">
           <Textarea placeholder="댓글 내용" value={body} onChange={(e) => setBody(e.target.value)} />
-          <Button onClick={handleAdd} disabled={loading}>
-            {loading ? "추가 중..." : "댓글 추가"}
+          <Button onClick={handleAdd} disabled={isPending}>
+            {isPending ? "추가 중..." : "댓글 추가"}
           </Button>
         </div>
       </DialogContent>
