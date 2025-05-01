@@ -1,7 +1,6 @@
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, Input, Textarea, Button } from "@/shared/ui"
-import { addPost } from "@/entities/post/api/postApi"
-import { usePostStore } from "@/features/post-load/model/usePostStore"
+import { useAddPostMutation } from "@/entities/post/model/mutation"
 
 interface Props {
   open: boolean
@@ -13,22 +12,22 @@ export const PostAddDialog = ({ open, onOpenChange }: Props) => {
   const [body, setBody] = useState("")
   const [userId, setUserId] = useState(1)
 
-  const { posts, setPosts } = usePostStore()
+  const { mutate: addPost, isPending } = useAddPostMutation()
 
   const handleSubmit = async () => {
-    if (!title || !body) return
+    if (!title.trim() || !body.trim()) return
 
-    const newPost = await addPost({
-      title,
-      body,
-      userId,
-    })
-
-    setPosts([newPost, ...posts])
-    setTitle("")
-    setBody("")
-    setUserId(1)
-    onOpenChange(false)
+    addPost(
+      { title, body, userId },
+      {
+        onSuccess: () => {
+          setTitle("")
+          setBody("")
+          setUserId(1)
+          onOpenChange(false)
+        },
+      },
+    )
   }
 
   return (
@@ -46,7 +45,9 @@ export const PostAddDialog = ({ open, onOpenChange }: Props) => {
             value={userId}
             onChange={(e) => setUserId(Number(e.target.value))}
           />
-          <Button onClick={handleSubmit}>게시물 추가</Button>
+          <Button onClick={handleSubmit} disabled={isPending}>
+            {isPending ? "게시물 추가 중..." : "게시물 추가"}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

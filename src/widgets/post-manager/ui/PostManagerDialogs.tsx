@@ -61,18 +61,12 @@ export const PostManagerDialogs = ({
   onClickEditComment,
   onClickDeleteComment,
   onClickLikeComment,
-  onPostUpdated,
 }: PostManagerDialogsProps) => {
   return (
     <>
       <PostAddDialog open={showAddDialog} onOpenChange={onCloseAddDialog} />
 
-      <PostEditDialog
-        open={showEditDialog}
-        onOpenChange={onCloseEditDialog}
-        post={selectedPost}
-        onPostUpdated={onPostUpdated}
-      />
+      <PostEditDialog open={showEditDialog} onOpenChange={onCloseEditDialog} post={selectedPost} />
 
       <PostDetailDialog
         open={showDetailDialog}

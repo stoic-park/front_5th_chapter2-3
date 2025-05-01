@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { Plus } from "lucide-react"
+import { useQueryClient } from "@tanstack/react-query"
 
 // widgets
 import { PostManagerPanel } from "@/widgets/post-manager/ui/PostManagerPanel"
@@ -9,8 +10,11 @@ import { PostManagerDialogs } from "@/widgets/post-manager/ui/PostManagerDialogs
 // shared
 import { Button, Card, CardHeader, CardTitle } from "@/shared/ui"
 
-// api
-import { fetchTags, deletePost } from "@/entities/post/api/postApi"
+// entities
+import { fetchTags } from "@/entities/post/api/postApi"
+import { usePostsQuery, useSearchPostsQuery, usePostsByTagQuery } from "@/entities/post/model/query"
+import { useDeletePostMutation } from "@/entities/post/model/mutation"
+import { fetchComments, deleteComment, likeComment } from "@/entities/comment/api/commentApi"
 import { fetchUserById } from "@/entities/user/api/userApi"
 
 // types
@@ -18,41 +22,63 @@ import { Post, Tag } from "@/entities/post/model/types"
 import { Comment } from "@/entities/comment/model/types"
 import { User } from "@/entities/user/model/types"
 
-// zustand store
-import { usePostStore } from "@/features/post-load/model/usePostStore"
-import { useCommentStore } from "@/features/comment-manage/model/useCommentStore"
-
 const PostsManagerPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const queryClient = useQueryClient()
   const queryParams = new URLSearchParams(location.search)
 
-  // 로컬 상태
-  const [skip, setSkip] = useState(parseInt(queryParams.get("skip") || "0"))
-  const [limit, setLimit] = useState(parseInt(queryParams.get("limit") || "10"))
+  const [skip, setSkip] = useState(Number(queryParams.get("skip")) || 0)
+  const [limit, setLimit] = useState(Number(queryParams.get("limit")) || 10)
   const [searchQuery, setSearchQuery] = useState(queryParams.get("search") || "")
   const [sortBy, setSortBy] = useState(queryParams.get("sortBy") || "")
   const [sortOrder, setSortOrder] = useState(queryParams.get("sortOrder") || "asc")
   const [selectedTag, setSelectedTag] = useState(queryParams.get("tag") || "")
-  const [tags, setTags] = useState<Tag[]>([])
 
   const [selectedPost, setSelectedPost] = useState<Post | null>(null)
+  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [selectedComment, setSelectedComment] = useState<Comment | null>(null)
+
+  const [tags, setTags] = useState<Tag[]>([])
+  const [commentsMap, setCommentsMap] = useState<Record<number, Comment[]>>({})
+
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [showPostDetailDialog, setShowPostDetailDialog] = useState(false)
-
-  const [selectedComment, setSelectedComment] = useState<Comment | null>(null)
   const [showAddCommentDialog, setShowAddCommentDialog] = useState(false)
   const [showEditCommentDialog, setShowEditCommentDialog] = useState(false)
-
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [showUserModal, setShowUserModal] = useState(false)
 
-  // zustand store
-  const { posts, total, loading, loadDefault, loadBySearch, loadByTag, removePost } = usePostStore()
-  const { commentsMap, fetchByPostId, like, remove } = useCommentStore()
+  const isSearching = !!searchQuery.trim()
+  const isFilteringByTag = !!selectedTag && selectedTag !== "all"
 
-  const updateURL = () => {
+  // Query
+  const { data: defaultData, isLoading: isLoadingDefault } = usePostsQuery({ limit, skip })
+  const { data: searchData } = useSearchPostsQuery(searchQuery, isSearching)
+  const { data: tagData } = usePostsByTagQuery(selectedTag, isFilteringByTag)
+
+  const posts = isSearching
+    ? (searchData?.posts ?? [])
+    : isFilteringByTag
+      ? (tagData?.posts ?? [])
+      : (defaultData?.posts ?? [])
+
+  const total = isSearching
+    ? (searchData?.total ?? 0)
+    : isFilteringByTag
+      ? (tagData?.total ?? 0)
+      : (defaultData?.total ?? 0)
+
+  // Mutations
+  const { mutate: deletePost } = useDeletePostMutation()
+
+  // Tags
+  useEffect(() => {
+    fetchTags().then(setTags)
+  }, [])
+
+  // URL 동기화
+  useEffect(() => {
     const params = new URLSearchParams()
     if (skip) params.set("skip", skip.toString())
     if (limit) params.set("limit", limit.toString())
@@ -61,54 +87,42 @@ const PostsManagerPage = () => {
     if (sortOrder) params.set("sortOrder", sortOrder)
     if (selectedTag) params.set("tag", selectedTag)
     navigate(`?${params.toString()}`)
-  }
-
-  const handleSearchPosts = () => {
-    if (!searchQuery) {
-      loadDefault(limit, skip)
-    } else {
-      loadBySearch(searchQuery)
-    }
-  }
-
-  const handleFetchPostsByTag = (tag: string) => {
-    if (!tag || tag === "all") {
-      loadDefault(limit, skip)
-    } else {
-      loadByTag(tag)
-    }
-  }
-
-  const handleDeleteComment = async (id: number, postId: number) => {
-    await remove(id, postId)
-  }
-
-  const handleLikeComment = async (id: number) => {
-    await like(id)
-  }
-
-  useEffect(() => {
-    fetchTags().then(setTags)
-  }, [])
-
-  useEffect(() => {
-    if (selectedTag) {
-      handleFetchPostsByTag(selectedTag)
-    } else {
-      loadDefault(limit, skip)
-    }
-    updateURL()
   }, [skip, limit, sortBy, sortOrder, selectedTag])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
-    setSkip(parseInt(params.get("skip") || "0"))
-    setLimit(parseInt(params.get("limit") || "10"))
+    setSkip(Number(params.get("skip")) || 0)
+    setLimit(Number(params.get("limit")) || 10)
     setSearchQuery(params.get("search") || "")
     setSortBy(params.get("sortBy") || "")
     setSortOrder(params.get("sortOrder") || "asc")
     setSelectedTag(params.get("tag") || "")
   }, [location.search])
+
+  // 댓글 핸들러
+  const fetchByPostId = async (postId: number) => {
+    if (commentsMap[postId]) return
+    const data = await fetchComments(postId)
+    setCommentsMap((prev) => ({ ...prev, [postId]: data }))
+  }
+
+  const handleLikeComment = async (commentId: number, postId: number) => {
+    const target = commentsMap[postId]?.find((c) => c.id === commentId)
+    if (!target) return
+    const updated = await likeComment(commentId)
+    setCommentsMap((prev) => ({
+      ...prev,
+      [postId]: prev[postId].map((c) => (c.id === commentId ? updated : c)),
+    }))
+  }
+
+  const handleDeleteComment = async (id: number, postId: number) => {
+    await deleteComment(id)
+    setCommentsMap((prev) => ({
+      ...prev,
+      [postId]: prev[postId].filter((c) => c.id !== id),
+    }))
+  }
 
   return (
     <Card className="w-full max-w-6xl mx-auto">
@@ -122,9 +136,8 @@ const PostsManagerPage = () => {
         </CardTitle>
       </CardHeader>
 
-      {/* 게시물 관리 패널 */}
       <PostManagerPanel
-        loading={loading}
+        loading={isLoadingDefault}
         posts={posts}
         searchQuery={searchQuery}
         selectedTag={selectedTag}
@@ -135,27 +148,27 @@ const PostsManagerPage = () => {
         sortBy={sortBy}
         sortOrder={sortOrder}
         onChangeSearch={setSearchQuery}
-        onSearchSubmit={handleSearchPosts}
+        onSearchSubmit={() => {}}
         onChangeTag={setSelectedTag}
         onChangeSortBy={setSortBy}
         onChangeSortOrder={setSortOrder}
         onClickUser={async (user) => {
           if (!user) return
-          const userData = await fetchUserById(user.id)
-          setSelectedUser(userData)
+          const data = await fetchUserById(user.id)
+          setSelectedUser(data)
           setShowUserModal(true)
         }}
-        onClickTag={(tag) => {
-          setSelectedTag(tag)
-          handleFetchPostsByTag(tag)
-        }}
+        onClickTag={setSelectedTag}
         onClickEdit={(post) => {
           setSelectedPost(post)
           setShowEditDialog(true)
         }}
-        onClickDelete={async (postId) => {
-          await deletePost(postId)
-          removePost(postId)
+        onClickDelete={(postId) => {
+          deletePost(postId, {
+            onSuccess: () => {
+              queryClient.invalidateQueries({ queryKey: ["posts"] })
+            },
+          })
         }}
         onClickDetail={(post) => {
           setSelectedPost(post)
@@ -167,7 +180,6 @@ const PostsManagerPage = () => {
         onClickNext={() => setSkip(skip + limit)}
       />
 
-      {/* 모달 영역 */}
       <PostManagerDialogs
         showAddDialog={showAddDialog}
         showEditDialog={showEditDialog}
@@ -194,7 +206,7 @@ const PostsManagerPage = () => {
         onClickDeleteComment={handleDeleteComment}
         onClickLikeComment={handleLikeComment}
         onPostUpdated={() => {
-          loadDefault(limit, skip)
+          queryClient.invalidateQueries({ queryKey: ["posts"] })
         }}
       />
     </Card>
