@@ -1,7 +1,7 @@
 import axios from "axios"
 
 export const axiosInstance = axios.create({
-  baseURL: "/api", // 기본 API URL
+  baseURL: process.env.NODE_ENV === "production" ? "https://dummyjson.com" : "/api",
   headers: {
     "Content-Type": "application/json",
   },
