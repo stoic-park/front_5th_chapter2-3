@@ -1,4 +1,5 @@
 {
+  "homepage": "https://stoic-park.github.io/front_5th_chapter2-3/",
   "name": "front-end-2-3",
   "private": true,
   "version": "0.0.0",
@@ -9,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "deploy": "gh-pages -d dist",
+    "predeploy": "npm run build"
   },
   "dependencies": {
     "react": "^19.1.0",
@@ -31,6 +34,7 @@
     "eslint": "^9.25.1",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
+    "gh-pages": "^6.3.0",
     "globals": "^16.0.0",
     "jsdom": "^26.1.0",
     "lucide-react": "^0.503.0",

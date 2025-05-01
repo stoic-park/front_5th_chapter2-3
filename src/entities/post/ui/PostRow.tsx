@@ -1,51 +1,49 @@
 import { TableCell } from "@/shared/ui"
+import { Button } from "@/shared/ui"
+import { MessageSquare, Edit2, Trash2, ThumbsUp, ThumbsDown } from "lucide-react"
 import { Post } from "@/entities/post/model/types"
-import { ThumbsUp, ThumbsDown, MessageSquare, Edit2, Trash2 } from "lucide-react"
+import { UserAvatar } from "@/entities/user/ui/UserAvatar"
 
 interface PostRowProps {
   post: Post
-  highlight?: string
-  onClickDetail?: (post: Post) => void
-  onClickEdit?: (post: Post) => void
-  onClickDelete?: (postId: number) => void
-  onClickAuthor?: (author: Post["author"]) => void
-  onClickTag?: (tag: string) => void
+  searchQuery: string
+  selectedTag: string
+  highlightText: (text: string, highlight: string) => React.ReactNode
+
+  onClickTag: (tag: string) => void
+  onClickEdit: (post: Post) => void
+  onClickDelete: (postId: number) => void
+  onClickDetail: (post: Post) => void
+  onClickUser: (user: Post["author"]) => void
 }
 
-// Post의 ui 표현에만 집중
-// 상태, api 호출, 이벤트 로직 X
 export const PostRow = ({
   post,
-  highlight = "",
-  onClickDetail,
+  searchQuery,
+  selectedTag,
+  highlightText,
+  onClickTag,
   onClickEdit,
   onClickDelete,
-  onClickAuthor,
-  onClickTag,
+  onClickDetail,
+  onClickUser,
 }: PostRowProps) => {
-  const highlightText = (text: string) => {
-    if (!highlight) return text
-    const regex = new RegExp(`(${highlight})`, "gi")
-    const parts = text.split(regex)
-    return parts.map((part, i) => (regex.test(part) ? <mark key={i}>{part}</mark> : <span key={i}>{part}</span>))
-  }
-
   return (
     <>
       <TableCell>{post.id}</TableCell>
       <TableCell>
         <div className="space-y-1">
-          <div>{highlightText(post.title)}</div>
+          <div>{highlightText(post.title, searchQuery)}</div>
           <div className="flex flex-wrap gap-1">
             {post.tags?.map((tag) => (
               <span
                 key={tag}
                 className={`px-1 text-[9px] font-semibold rounded-[4px] cursor-pointer ${
-                  highlight === tag
+                  selectedTag === tag
                     ? "text-white bg-blue-500 hover:bg-blue-600"
                     : "text-blue-800 bg-blue-100 hover:bg-blue-200"
                 }`}
-                onClick={() => onClickTag?.(tag)}
+                onClick={() => onClickTag(tag)}
               >
                 {tag}
               </span>
@@ -54,30 +52,27 @@ export const PostRow = ({
         </div>
       </TableCell>
       <TableCell>
-        <div className="flex items-center space-x-2 cursor-pointer" onClick={() => onClickAuthor?.(post.author)}>
-          <img src={post.author?.image} alt={post.author?.username} className="w-8 h-8 rounded-full" />
-          <span>{post.author?.username}</span>
-        </div>
+        <UserAvatar user={post.author} onClick={() => onClickUser(post.author)} />
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
           <ThumbsUp className="w-4 h-4" />
-          <span>{post.reactions?.likes ?? 0}</span>
+          <span>{post.reactions?.likes || 0}</span>
           <ThumbsDown className="w-4 h-4" />
-          <span>{post.reactions?.dislikes ?? 0}</span>
+          <span>{post.reactions?.dislikes || 0}</span>
         </div>
       </TableCell>
       <TableCell>
         <div className="flex items-center gap-2">
-          <button onClick={() => onClickDetail?.(post)}>
+          <Button variant="ghost" size="sm" onClick={() => onClickDetail(post)}>
             <MessageSquare className="w-4 h-4" />
-          </button>
-          <button onClick={() => onClickEdit?.(post)}>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onClickEdit(post)}>
             <Edit2 className="w-4 h-4" />
-          </button>
-          <button onClick={() => onClickDelete?.(post.id)}>
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onClickDelete(post.id)}>
             <Trash2 className="w-4 h-4" />
-          </button>
+          </Button>
         </div>
       </TableCell>
     </>
