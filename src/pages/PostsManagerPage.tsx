@@ -3,25 +3,11 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { Plus } from "lucide-react"
 
 // widgets
-import { PostTable } from "@/widgets/post-table/ui/PostTable"
-import { PostDetailDialog } from "@/widgets/post-detail-dialog/ui/PostDetailDialog"
-import { PostFilterPanel } from "@/widgets/post-filters/ui/PostFilterPanel"
-import { PaginationPanel } from "@/widgets/pagination/ui/PaginationPanel"
-import { UserInfoDialog } from "@/widgets/user-info-dialog/ui/UserInfoDialog"
-
-// features
-import { PostAddDialog } from "@/features/post-add/ui/PostAddDialog"
-import { PostEditDialog } from "@/features/post-edit/ui/PostEditDialog"
-import { CommentAddDialog } from "@/features/comment-add/ui/CommentAddDialog"
-import { CommentEditDialog } from "@/features/comment-edit/ui/CommentEditDialog"
+import { PostManagerPanel } from "@/widgets/post-manager/ui/PostManagerPanel"
+import { PostManagerDialogs } from "@/widgets/post-manager/ui/PostManagerDialogs"
 
 // shared
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@/shared/ui"
-import { highlightText } from "@/shared/lib/highlightText"
-
-// zustand store
-import { usePostStore } from "@/features/post-load/model/usePostStore"
-import { useCommentStore } from "@/features/comment-manage/model/useCommentStore"
+import { Button, Card, CardHeader, CardTitle } from "@/shared/ui"
 
 // api
 import { fetchTags, deletePost } from "@/entities/post/api/postApi"
@@ -31,6 +17,10 @@ import { fetchUserById } from "@/entities/user/api/userApi"
 import { Post, Tag } from "@/entities/post/model/types"
 import { Comment } from "@/entities/comment/model/types"
 import { User } from "@/entities/user/model/types"
+
+// zustand store
+import { usePostStore } from "@/features/post-load/model/usePostStore"
+import { useCommentStore } from "@/features/comment-manage/model/useCommentStore"
 
 const PostsManagerPage = () => {
   const navigate = useNavigate()
@@ -132,110 +122,81 @@ const PostsManagerPage = () => {
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="space-y-6">
-        <PostFilterPanel
-          searchQuery={searchQuery}
-          selectedTag={selectedTag}
-          sortBy={sortBy}
-          sortOrder={sortOrder}
-          tags={tags}
-          onChangeSearch={setSearchQuery}
-          onSearchSubmit={handleSearchPosts}
-          onChangeTag={(tag) => {
-            setSelectedTag(tag)
-            handleFetchPostsByTag(tag)
-          }}
-          onChangeSortBy={setSortBy}
-          onChangeSortOrder={setSortOrder}
-        />
-
-        {loading ? (
-          <div className="flex justify-center p-4">로딩 중...</div>
-        ) : (
-          <PostTable
-            posts={posts}
-            searchQuery={searchQuery}
-            selectedTag={selectedTag}
-            highlightText={highlightText}
-            onClickUser={async (user) => {
-              if (!user) return
-              const userData = await fetchUserById(user.id)
-              setSelectedUser(userData)
-              setShowUserModal(true)
-            }}
-            onClickTag={(tag) => {
-              setSelectedTag(tag)
-              handleFetchPostsByTag(tag)
-            }}
-            onClickEdit={(post) => {
-              setSelectedPost(post)
-              setShowEditDialog(true)
-            }}
-            onClickDelete={async (postId) => {
-              await deletePost(postId)
-              removePost(postId)
-            }}
-            onClickDetail={(post) => {
-              setSelectedPost(post)
-              fetchByPostId(post.id)
-              setShowPostDetailDialog(true)
-            }}
-          />
-        )}
-
-        <PaginationPanel
-          skip={skip}
-          limit={limit}
-          total={total}
-          onChangeLimit={setLimit}
-          onClickPrev={() => setSkip(Math.max(0, skip - limit))}
-          onClickNext={() => setSkip(skip + limit)}
-        />
-      </CardContent>
-
-      <PostAddDialog open={showAddDialog} onOpenChange={setShowAddDialog} />
-
-      <PostEditDialog
-        open={showEditDialog}
-        onOpenChange={setShowEditDialog}
-        post={selectedPost}
-        onPostUpdated={() => {
-          loadDefault(limit, skip)
+      {/* 게시물 관리 패널 */}
+      <PostManagerPanel
+        loading={loading}
+        posts={posts}
+        searchQuery={searchQuery}
+        selectedTag={selectedTag}
+        tags={tags}
+        skip={skip}
+        limit={limit}
+        total={total}
+        sortBy={sortBy}
+        sortOrder={sortOrder}
+        onChangeSearch={setSearchQuery}
+        onSearchSubmit={handleSearchPosts}
+        onChangeTag={setSelectedTag}
+        onChangeSortBy={setSortBy}
+        onChangeSortOrder={setSortOrder}
+        onClickUser={async (user) => {
+          if (!user) return
+          const userData = await fetchUserById(user.id)
+          setSelectedUser(userData)
+          setShowUserModal(true)
         }}
+        onClickTag={(tag) => {
+          setSelectedTag(tag)
+          handleFetchPostsByTag(tag)
+        }}
+        onClickEdit={(post) => {
+          setSelectedPost(post)
+          setShowEditDialog(true)
+        }}
+        onClickDelete={async (postId) => {
+          await deletePost(postId)
+          removePost(postId)
+        }}
+        onClickDetail={(post) => {
+          setSelectedPost(post)
+          fetchByPostId(post.id)
+          setShowPostDetailDialog(true)
+        }}
+        onChangeLimit={setLimit}
+        onClickPrev={() => setSkip(Math.max(0, skip - limit))}
+        onClickNext={() => setSkip(skip + limit)}
       />
 
-      <PostDetailDialog
-        open={showPostDetailDialog}
-        onOpenChange={setShowPostDetailDialog}
-        post={selectedPost}
-        comments={selectedPost?.id ? commentsMap[selectedPost.id] || [] : []}
+      {/* 모달 영역 */}
+      <PostManagerDialogs
+        showAddDialog={showAddDialog}
+        showEditDialog={showEditDialog}
+        showDetailDialog={showPostDetailDialog}
+        showAddCommentDialog={showAddCommentDialog}
+        showEditCommentDialog={showEditCommentDialog}
+        showUserModal={showUserModal}
+        selectedPost={selectedPost}
+        selectedComment={selectedComment}
+        selectedUser={selectedUser}
+        commentsMap={commentsMap}
         searchQuery={searchQuery}
-        onClickAddComment={() => {
-          setShowAddCommentDialog(true)
-        }}
+        onCloseAddDialog={() => setShowAddDialog(false)}
+        onCloseEditDialog={() => setShowEditDialog(false)}
+        onCloseDetailDialog={() => setShowPostDetailDialog(false)}
+        onCloseAddCommentDialog={() => setShowAddCommentDialog(false)}
+        onCloseEditCommentDialog={() => setShowEditCommentDialog(false)}
+        onCloseUserModal={() => setShowUserModal(false)}
+        onClickAddComment={() => setShowAddCommentDialog(true)}
         onClickEditComment={(comment) => {
           setSelectedComment(comment)
           setShowEditCommentDialog(true)
         }}
         onClickDeleteComment={handleDeleteComment}
         onClickLikeComment={handleLikeComment}
-        highlightText={highlightText}
+        onPostUpdated={() => {
+          loadDefault(limit, skip)
+        }}
       />
-
-      <CommentAddDialog
-        open={showAddCommentDialog}
-        onOpenChange={setShowAddCommentDialog}
-        postId={selectedPost?.id || 0}
-        userId={1}
-      />
-
-      <CommentEditDialog
-        open={showEditCommentDialog}
-        onOpenChange={setShowEditCommentDialog}
-        comment={selectedComment}
-      />
-
-      <UserInfoDialog open={showUserModal} onOpenChange={setShowUserModal} user={selectedUser} />
     </Card>
   )
 }
