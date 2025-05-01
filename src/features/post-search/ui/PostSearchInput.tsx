@@ -12,7 +12,7 @@ interface PostSearchInputProps {
 // 독립적인 기능을 담당, 이벤트 트리거, 이 기능에 해당하는 시각적 입력 UI
 export const PostSearchInput = ({ value, onChange, onSubmit }: PostSearchInputProps) => {
   return (
-    <div className="relative w-full">
+    <div className="relative">
       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
       <Input
         className="pl-8"
